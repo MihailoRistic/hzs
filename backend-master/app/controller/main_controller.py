@@ -76,23 +76,30 @@ def get_team(team_uuid):
 
 
 def get_member(team_uuid, member_id):
-    conn = _connect() # todo use connection as context manager
+
+    conn = _connect()  # todo use connection as context manager
     c = conn.cursor()
 
-    query = """SELECT id FROM team WHERE team_uuid=?"""
+    team_uuid = team_uuid[:-1]
+
+    query = """SELECT id, name, description, photo_url, team_uuid FROM team WHERE team_uuid=?"""
     c.execute(query, (team_uuid,))
     t = c.fetchone()
 
     if t is None:
         return None
 
-    created_team = Team(id=t[0])
+    created_team = Team(id=t[0], name=t[1], description=t[2], photo_url=t[3], team_uuid=t[4])
 
-    member_query = """SELECT first_name, last_name, email, phone_number, school, city FROM team_member WHERE team_id=?, id=?"""
-    c.execute(member_query, (create_team.id, member_id,))
-    m=c.fetchone()
+    member_query = """SELECT first_name, last_name, email, phone_number, school, city FROM team_member WHERE
+     team_id=? AND id=?"""
+    c.execute(member_query, (t[0], member_id))
+    m = c.fetchone()
+    if m is None:
+        return None
 
-    member = TeamMember(first_name=m[0], last_name=m[1], email=m[2], phone_number=m[3], school=m[4], city=m[4])
+    member = TeamMember(id=member_id, first_name=m[0], last_name=m[1], email=m[2], phone_number=m[3], school=m[4],
+                        city=m[4], team=created_team)
 
     conn.commit()
     c.close()
@@ -105,9 +112,17 @@ def update_member(data):
     conn = _connect()  # todo use connection as context manager
     c = conn.cursor()
 
-    query = """UPDATE team_member SET first_name=?, last_name=?, email=?, phone_number=?, school=?, city=? WHERE team_id=?, id=?"""
+    query = """SELECT id FROM team_member WHERE id=? And team_id=?"""
+    c.execute(query, (data['id'], data['team_id']))
 
-    c.execute(query, (data['first_name'], data['last_name'], data['email'], data['phone_number'], data['school'], data['city'], data['team_id'], data['id'] ))
+    if c.fetchone() is None:
+        return None
+
+    query = """UPDATE team_member SET first_name=?, last_name=?, email=?, phone_number=?, school=?, city=? WHERE
+     team_id=? AND id=?"""
+
+    c.execute(query, (data['first_name'], data['last_name'], data['email'], data['phone_number'], data['school'],
+                      data['city'], data['team_id'], data['id']))
 
     conn.commit()
     c.close()
@@ -117,6 +132,9 @@ def update_member(data):
 
 def delete_member(team_uuid, member_id):
     conn = _connect()
+    c = conn.cursor()
+
+    team_uuid = team_uuid[:-1]
 
     query = """SELECT id FROM team WHERE team_uuid=?"""
     c.execute(query, (team_uuid,))
@@ -124,13 +142,10 @@ def delete_member(team_uuid, member_id):
 
     if t is None:
         return None
-
-    created_team = Team(id=t[0])
-
     try:
         with conn:
-            team_query = """DELETE FROM team_member WHERE team_id=?, id=?"""
-            status = conn.execute(team_query, (created_team.id, member_id,))
+            team_query = """DELETE FROM team_member WHERE team_id=? AND id=?"""
+            status = conn.execute(team_query, (t[0], member_id))
             success = False
             if status.rowcount == 1:
                 success = True

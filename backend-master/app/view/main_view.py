@@ -52,22 +52,22 @@ def single_team_view(team_uuid):
         return jsonify({}), 204
 
 
-
-@teams.route('/<string:team_uuid>:<int:member_id>', methods=['GET', 'PUT', 'DELETE'])
+@teams.route('/<team_uuid>:<int:member_id>', methods=['GET', 'PUT', 'DELETE'])
 def single_member_view(team_uuid, member_id):
+    print('Uslo u deo za membere')
     if request.method == 'GET':  # get the member
         member = get_member(team_uuid, member_id)
         if member is None:
-            return jsonify({'error': 'member with unique id {} not found'.format(member_id)}), 404
+            return jsonify({'error': 'member with id {} not found'.format(member_id)}), 404
 
-        response_body = team_member.to_dict()
+        response_body = member.to_dict()
         return jsonify(response_body), 200
 
     if request.method == 'PUT':  # update the member
         body = request.json
         updated = update_member(body)
         if updated is None:
-            return jsonify({'error': 'member with unique id {} not found'.format(member_id)}), 404
+            return jsonify({'error': 'member with id {} not found'.format(member_id)}), 404
 
         return jsonify(updated), 200
 
@@ -75,6 +75,6 @@ def single_member_view(team_uuid, member_id):
         success = delete_member(team_uuid, member_id)
 
         if not success:
-            return jsonify({'error': 'member with unique id {} not found'.format(member_id)}), 404
+            return jsonify({'error': 'member with id {} not found'.format(member_id)}), 404
 
         return jsonify({}), 204
